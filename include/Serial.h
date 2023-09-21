@@ -19,7 +19,8 @@ public:
     void generateMessage(int motorID, int operationMode, float torque, float position, float velocity, float kp, float kd, uint8_t* message);
     void printMessage(const uint8_t* message, size_t size);
     // void sendMessage();
-    ssize_t writeData(const uint8_t* buffer, size_t length);
+    //ssize_t writeData(const uint8_t* buffer, size_t length);
+    void writeData(const uint8_t* data, size_t size);
     ssize_t readDataWithTimeout(uint8_t* buffer, size_t size, int timeoutMs);
     void decodeMessage(const uint8_t* response, int &id, float &tauEst, float &speed, float &position);
 

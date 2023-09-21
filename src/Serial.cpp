@@ -1,5 +1,6 @@
 #include "Serial.h"
 #include <iostream>
+#include <chrono>
 
 
 Serial::Serial(std::string path, int baudrate){
@@ -20,19 +21,34 @@ Serial::Serial(std::string path, int baudrate){
     sp_set_parity(port, SP_PARITY_NONE);
     sp_set_stopbits(port, 1);
     sp_set_flowcontrol(port, SP_FLOWCONTROL_NONE);
+    
+    // Retrieve the file descriptor
+    result = sp_get_port_handle(port, &fd);
+    if (result != SP_OK){
+        perror("Error retrieving file descriptor from serial port");
+        exit(EXIT_FAILURE);
+    }
 }
 
 Serial::~Serial(){
+    if (fd >= 0){
+        close(fd);
+    }
+    
 	sp_close(port);
     sp_free_port(port);
 }
 
-ssize_t Serial::writeData(const uint8_t* buffer, size_t length){
-	ssize_t bytesWritten = sp_blocking_write(port, buffer, length, 0);
-    if(bytesWritten < 0){
-        throw std::runtime_error("Failed to write to the serial port.");
-    }
-    return bytesWritten;
+//ssize_t Serial::writeData(const uint8_t* buffer, size_t length){
+	//ssize_t bytesWritten = sp_nonblocking_write(port, buffer, length);
+    //if(bytesWritten < 0){
+        //throw std::runtime_error("Failed to write to the serial port.");
+    //}
+    //return bytesWritten;
+//}
+
+void Serial::writeData(const uint8_t* data, size_t size){
+    write(fd, data, size);
 }
 
 void Serial::printMessage(const uint8_t* message, size_t size){
@@ -128,36 +144,52 @@ uint32_t Serial::crc32_core(uint32_t* ptr, uint32_t len){
     return CRC32;
 }
 
+#include <chrono>
+
 ssize_t Serial::readDataWithTimeout(uint8_t* buffer, size_t size, int timeoutMs){
     size_t bytesRead = 0;
-    unsigned long startTime = time(NULL);
-    
-    while (bytesRead < size && (time(NULL) - startTime) < (timeoutMs / 1000)){
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    while (bytesRead < size) {
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+
+        if (elapsed.count() > timeoutMs) {
+            break;
+        }
+
         ssize_t result = sp_nonblocking_read(port, buffer + bytesRead, size - bytesRead);
         
-        if (result > 0){
+        if (result > 0) {
             bytesRead += result;
         } else if (result < 0) {
             return -1;
         }
-        
-        usleep(100);
+
+        usleep(1); // Reduce sleep time, or consider an event-driven approach
     }
     return bytesRead;
 }
 
 void Serial::decodeMessage(const uint8_t* response, int &id, float &tauEst, float &speed, float &position){
+    if (!response) {
+        return;
+    }
+    
+    constexpr float TORQUE_SCALE = 9.1;
+    constexpr float POSITION_SCALE = 16384.0 / (2.0 * 3.1415926);
+    constexpr float SPEED_SCALE = 128.0;
+
     int8_t motorid = response[2];
     int16_t motorTorque = (response[13] << 8) | response[12];
-    if (motorTorque > 250){
+    if (motorTorque > 250) {
         motorTorque = 0;
     }
     int16_t motorSpeed = (response[15] << 8) | response[14];
     int32_t motorPosition = (response[33] << 24) | (response[32] << 16) | (response[31] << 8) | response[30];
     
-    //Convert the scaled values back to the original values
     id = static_cast<int>(motorid);
-    tauEst = static_cast<float>((motorTorque) / 256.0) * 9.1;
-    speed = static_cast<float>(motorSpeed) / 128.0 / 9.1;
-    position = static_cast<float>(motorPosition) / (16384.0 / (2.0 * 3.1415926)) / 9.1; 
+    tauEst = static_cast<float>((motorTorque) / 256.0) * TORQUE_SCALE;
+    speed = static_cast<float>(motorSpeed) / SPEED_SCALE / TORQUE_SCALE;
+    position = static_cast<float>(motorPosition) / POSITION_SCALE / TORQUE_SCALE; 
 }

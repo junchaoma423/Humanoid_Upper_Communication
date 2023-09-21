@@ -22,12 +22,13 @@ public:
     void Calc();
     void DecodeMessage();
     uint8_t message[34];
+    int disconnect_counter = 0;
 
     UDP udp;
     UDPState udpstate;
     ArmCommand command;
     ArmState state;
-    float dt = 0.01;
+    float dt = 0.001;
     Serial serial;
     int validDataReceived = -3;;
 };
@@ -44,7 +45,8 @@ void Custom::UDPSend()
 
 void Custom::Calc()
 {
-    //auto start = std::chrono::high_resolution_clock::now();
+    uint8_t message[34];
+    auto start = std::chrono::high_resolution_clock::now();
     udp.GetRecv((char*)&command);
     if (validDataReceived == 0){
     //printf("%f\n", command.q_command[0]);
@@ -55,9 +57,9 @@ void Custom::Calc()
     int motorid = 2;
     int operation_mode = 10;
     
-    std::cout << "tau_command is " << command.tau_command[0] << std::endl;
-    std::cout << "Position command is " << command.q_command[0] << std::endl;
-    std::cout << "kp command is " << command.kp_command[0] << std::endl;
+    //std::cout << "tau_command is " << command.tau_command[0] << std::endl;
+    //std::cout << "Position command is " << command.q_command[0] << std::endl;
+    //std::cout << "kp command is " << command.kp_command[0] << std::endl;
     //float torque = command.tau_command[0];
     //float position = command.q_command[0];
     //float velocity = command.dq_command[0];
@@ -67,9 +69,9 @@ void Custom::Calc()
     
     float torque = 0.0;
     float position = 0.0;
-    float velocity = 6.0;
+    float velocity = 3.0;
     float kp = 0.0;
-    float kd = 0.1;
+    float kd = 1;
     
     
     serial.generateMessage(motorid, operation_mode, torque, position, velocity, kp, kd, message);
@@ -99,30 +101,44 @@ void Custom::Calc()
     //state.pitch += 2;
 
     //udp.SetSend((char*)&state);
+    disconnect_counter = 0;
+    } else {
+    disconnect_counter++;
+    //    serial.generateMessage(2, 0, 0.0, 0.0, 0.0, 0.0, 0.0, message);
+    //    serial.writeData(message, sizeof(message));
     }
-    else {
+    
+    if (disconnect_counter > 10){
         serial.generateMessage(2, 0, 0.0, 0.0, 0.0, 0.0, 0.0, message);
         serial.writeData(message, sizeof(message));
     }
-    //auto end = std::chrono::high_resolution_clock::now();
+    udp.SetSend((char*)&state);
+
+    auto end = std::chrono::high_resolution_clock::now();
     
-    //auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //std::cout << "Encode Loop took: " << duration.count() << "milliseconds" << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    std::cout << "Encode Loop took: " << duration.count() << "microseconds" << std::endl;
 }
 
 void Custom::DecodeMessage()
 {
+    if (validDataReceived == 0){
     //auto start_decode = std::chrono::high_resolution_clock::now();
     int id_feedback;
     // Reading and decoding the response message
     uint8_t response[78];
     ssize_t bytesRead = serial.readDataWithTimeout(response, sizeof(response), 1000);
     
-    //std::cout << "bytesRead is " << bytesRead << std::endl;
+    std::cout << "bytesRead is " << bytesRead << std::endl;
     
     if (bytesRead == sizeof(response)){
     //    std::cout << "Full Response received from the motor: " << std::endl;
             serial.decodeMessage(response, id_feedback, state.tauEst[0], state.dq_state[0], state.q_state[0]);
+    } else{
+        std::cout << "Decoding failed" << std::endl;
+        state.tauEst[0] = 0;
+        state.dq_state[0] = 0;
+        state.q_state[0] = 0;
     }
     
     std::cout << "Position is " << state.q_state[0] << std::endl;
@@ -133,8 +149,9 @@ void Custom::DecodeMessage()
 
     //state.yaw +=  1;
     //state.pitch += 2
-
+    }
     udp.SetSend((char*)&state);
+    
     
 }
 
@@ -142,15 +159,15 @@ int main(void)
 {
     Custom custom;
     // InitEnvironment();
-    LoopFunc loop_calc("calc_loop",   0.001,1,    boost::bind(&Custom::Calc,    &custom));
-    LoopFunc loop_decode("decode_loop", custom.dt,2,  boost::bind(&Custom::DecodeMessage, &custom));
+    LoopFunc loop_calc("calc_loop",   custom.dt,    boost::bind(&Custom::Calc,    &custom));
+    //LoopFunc loop_decode("decode_loop", custom.dt,2,  boost::bind(&Custom::DecodeMessage, &custom));
     LoopFunc loop_udpSend("udp_send", custom.dt, 3, boost::bind(&Custom::UDPSend, &custom));
     LoopFunc loop_udpRecv("udp_recv", custom.dt, 3, boost::bind(&Custom::UDPRecv, &custom));
 
     loop_udpSend.start();
     loop_udpRecv.start();
     loop_calc.start();
-    loop_decode.start();
+    //loop_decode.start();
 
     while(1){
         sleep(10);
