@@ -39,14 +39,6 @@ Serial::~Serial(){
     sp_free_port(port);
 }
 
-//ssize_t Serial::writeData(const uint8_t* buffer, size_t length){
-	//ssize_t bytesWritten = sp_nonblocking_write(port, buffer, length);
-    //if(bytesWritten < 0){
-        //throw std::runtime_error("Failed to write to the serial port.");
-    //}
-    //return bytesWritten;
-//}
-
 void Serial::writeData(const uint8_t* data, size_t size){
     write(fd, data, size);
 }
@@ -144,31 +136,28 @@ uint32_t Serial::crc32_core(uint32_t* ptr, uint32_t len){
     return CRC32;
 }
 
-#include <chrono>
 
-ssize_t Serial::readDataWithTimeout(uint8_t* buffer, size_t size, int timeoutMs){
-    size_t bytesRead = 0;
-    auto startTime = std::chrono::high_resolution_clock::now();
+ssize_t Serial::readData(uint8_t* buffer, size_t bufferSize) {
+     uint8_t byte1;
+     // Synchronize to 0xfe
+     while (true) {
+        // Read the first byte
+        ssize_t bytesRead = read(fd, &byte1, 1);
+        if (bytesRead <= 0) {
+            return bytesRead; // Error or EOF
+        }
 
-    while (bytesRead < size) {
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
-
-        if (elapsed.count() > timeoutMs) {
+        if (byte1 == 0xfe) {
+            // Found the byte. Break out of the loop.
+            buffer[0] = byte1;
             break;
         }
-
-        ssize_t result = sp_nonblocking_read(port, buffer + bytesRead, size - bytesRead);
-        
-        if (result > 0) {
-            bytesRead += result;
-        } else if (result < 0) {
-            return -1;
-        }
-
-        usleep(1); // Reduce sleep time, or consider an event-driven approach
     }
-    return bytesRead;
+
+    // Read the remaining data into the buffer
+    ssize_t totalBytesRead = 1 + read(fd, buffer + 1, bufferSize - 1);
+
+    return totalBytesRead;
 }
 
 void Serial::decodeMessage(const uint8_t* response, int &id, float &tauEst, float &speed, float &position){
