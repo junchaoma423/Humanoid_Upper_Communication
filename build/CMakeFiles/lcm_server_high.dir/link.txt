@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -fPIC -rdynamic CMakeFiles/lcm_server_high.dir/examples/lcm_server_high.cpp.o -o lcm_server_high   -L/home/biped/Humanoid_Upper_Communication/lib  -Wl,-rpath,/home/biped/Humanoid_Upper_Communication/lib -pthread -lunitree_legged_sdk_arm32 -llcm -lserialport 

@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <iostream>
 #include <cstring>
+#include <libserialport.h>
 
 class Serial {
 public:
@@ -18,18 +19,16 @@ public:
     void generateMessage(int motorID, int operationMode, float torque, float position, float velocity, float kp, float kd, uint8_t* message);
     void printMessage(const uint8_t* message, size_t size);
     // void sendMessage();
-    void writeData(const uint8_t* data, size_t size);
-    
-    ssize_t readData(uint8_t* buffer, size_t size);
-    void decodeFromResponse(uint8_t* response, float& torqueActual, float& speedActual, float& positionActual);
+    ssize_t writeData(const uint8_t* buffer, size_t length);
+    ssize_t readDataWithTimeout(uint8_t* buffer, size_t size, int timeoutMs);
+    void decodeMessage(const uint8_t* response, int &id, float &tauEst, float &speed, float &position);
 
 private:
     uint32_t crc32_core(uint32_t* ptr, uint32_t len);
 
     int fd;
     struct termios2 ntio;
-    uint8_t message[34];
-    uint8_t response[78];
+    struct sp_port *port;
 };
 
 #endif /* SERIAL_H_ */

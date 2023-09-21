@@ -3,29 +3,36 @@
 
 
 Serial::Serial(std::string path, int baudrate){
-    /* Open modem device for reading and writing and not as controlling tty
-    because we don't want to get killed if linenoise sends CTRL-C. */
-    fd = open(path.c_str(), O_RDWR | O_NOCTTY | O_NDELAY | O_EXCL);
-    if (fd <0) {
-        exit(-1);
+    enum sp_return result = sp_get_port_by_name(path.c_str(), &port);
+    if (result != SP_OK){
+        perror("Error finding the specified serial port");
+        exit(EXIT_FAILURE);
     }
-
-    ioctl(fd, TCGETS2, &ntio);
-    ntio.c_cflag &= ~CBAUD;
-    ntio.c_cflag |= BOTHER | CREAD;
-    ntio.c_ispeed = baudrate;
-    ntio.c_ospeed = baudrate;
-    ioctl(fd, TCSETS2, &ntio);
+    
+    result = sp_open(port, SP_MODE_READ_WRITE);
+    if (result != SP_OK){
+        perror("Error opening the specified serial port");
+        exit(EXIT_FAILURE);
+    }
+    
+    sp_set_baudrate(port, baudrate);
+    sp_set_bits(port, 8);
+    sp_set_parity(port, SP_PARITY_NONE);
+    sp_set_stopbits(port, 1);
+    sp_set_flowcontrol(port, SP_FLOWCONTROL_NONE);
 }
 
 Serial::~Serial(){
-	if (fd >= 0){
-		close(fd);
-	}
+	sp_close(port);
+    sp_free_port(port);
 }
 
-void Serial::writeData(const uint8_t* data, size_t size){
-	write(fd, data, size);
+ssize_t Serial::writeData(const uint8_t* buffer, size_t length){
+	ssize_t bytesWritten = sp_blocking_write(port, buffer, length, 0);
+    if(bytesWritten < 0){
+        throw std::runtime_error("Failed to write to the serial port.");
+    }
+    return bytesWritten;
 }
 
 void Serial::printMessage(const uint8_t* message, size_t size){
@@ -121,26 +128,36 @@ uint32_t Serial::crc32_core(uint32_t* ptr, uint32_t len){
     return CRC32;
 }
 
-ssize_t Serial::readData(uint8_t* buffer, size_t bufferSize) {
-    return read(fd, buffer, bufferSize);
+ssize_t Serial::readDataWithTimeout(uint8_t* buffer, size_t size, int timeoutMs){
+    size_t bytesRead = 0;
+    unsigned long startTime = time(NULL);
+    
+    while (bytesRead < size && (time(NULL) - startTime) < (timeoutMs / 1000)){
+        ssize_t result = sp_nonblocking_read(port, buffer + bytesRead, size - bytesRead);
+        
+        if (result > 0){
+            bytesRead += result;
+        } else if (result < 0) {
+            return -1;
+        }
+        
+        usleep(100);
+    }
+    return bytesRead;
 }
 
-
-void Serial::decodeFromResponse(uint8_t* response, float& torqueActual, float& speedActual, float& positionActual) {
-    // Decode and update the passed-in float references
-    int motorTemp = response[6];
-    int motorError = response[7];
-    uint16_t motorTorque = (response[13] << 8) | response[12];
-    if (motorTorque > 250) {
+void Serial::decodeMessage(const uint8_t* response, int &id, float &tauEst, float &speed, float &position){
+    int8_t motorid = response[2];
+    int16_t motorTorque = (response[13] << 8) | response[12];
+    if (motorTorque > 250){
         motorTorque = 0;
     }
-    int motorSpeed = (response[15] << 8) | response[14];
-    int motorPosition = (response[33] << 24) | (response[32] << 16) | (response[31] << 8) | response[30];
-
-    // Convert the scaled values back to the original values and assign to the passed-in float references
-    torqueActual = static_cast<float>((motorTorque) / 256.0) * 9.1;
-    speedActual = static_cast<float>(motorSpeed) / 128.0 / 9.1;
-    positionActual = static_cast<float>(motorPosition) / (16384.0 / (2.0 * 3.1415926)) / 9.1;
-
-    // ... Rest of the decoding logic if you need any ...
+    int16_t motorSpeed = (response[15] << 8) | response[14];
+    int32_t motorPosition = (response[33] << 24) | (response[32] << 16) | (response[31] << 8) | response[30];
+    
+    //Convert the scaled values back to the original values
+    id = static_cast<int>(motorid);
+    tauEst = static_cast<float>((motorTorque) / 256.0) * 9.1;
+    speed = static_cast<float>(motorSpeed) / 128.0 / 9.1;
+    position = static_cast<float>(motorPosition) / (16384.0 / (2.0 * 3.1415926)) / 9.1; 
 }
