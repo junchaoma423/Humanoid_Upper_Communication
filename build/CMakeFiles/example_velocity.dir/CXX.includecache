@@ -70,9 +70,9 @@ quadruped.h
 boost/bind.hpp
 -
 
-/home/biped/Humanoid_Upper_Communication/examples/example_velocity.cpp
+/home/junchao/Humanoid_Upper_Communication/examples/example_velocity.cpp
 unitree_legged_sdk/unitree_legged_sdk.h
-/home/biped/Humanoid_Upper_Communication/examples/unitree_legged_sdk/unitree_legged_sdk.h
+/home/junchao/Humanoid_Upper_Communication/examples/unitree_legged_sdk/unitree_legged_sdk.h
 math.h
 -
 iostream

@@ -4,8 +4,8 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/biped/Humanoid_Upper_Communication/examples/multi_pc_udp_recv.cpp" "/home/biped/Humanoid_Upper_Communication/build/CMakeFiles/udp_recv_test.dir/examples/multi_pc_udp_recv.cpp.o"
-  "/home/biped/Humanoid_Upper_Communication/src/Serial.cpp" "/home/biped/Humanoid_Upper_Communication/build/CMakeFiles/udp_recv_test.dir/src/Serial.cpp.o"
+  "/home/junchao/Humanoid_Upper_Communication/examples/multi_pc_udp_recv.cpp" "/home/junchao/Humanoid_Upper_Communication/build/CMakeFiles/udp_recv_test.dir/examples/multi_pc_udp_recv.cpp.o"
+  "/home/junchao/Humanoid_Upper_Communication/src/Serial.cpp" "/home/junchao/Humanoid_Upper_Communication/build/CMakeFiles/udp_recv_test.dir/src/Serial.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 

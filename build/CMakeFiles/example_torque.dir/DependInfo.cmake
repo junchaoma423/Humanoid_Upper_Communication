@@ -4,7 +4,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/biped/Humanoid_Upper_Communication/examples/example_torque.cpp" "/home/biped/Humanoid_Upper_Communication/build/CMakeFiles/example_torque.dir/examples/example_torque.cpp.o"
+  "/home/junchao/Humanoid_Upper_Communication/examples/example_torque.cpp" "/home/junchao/Humanoid_Upper_Communication/build/CMakeFiles/example_torque.dir/examples/example_torque.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 

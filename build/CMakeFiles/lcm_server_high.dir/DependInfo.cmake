@@ -4,7 +4,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/biped/Humanoid_Upper_Communication/examples/lcm_server_high.cpp" "/home/biped/Humanoid_Upper_Communication/build/CMakeFiles/lcm_server_high.dir/examples/lcm_server_high.cpp.o"
+  "/home/junchao/Humanoid_Upper_Communication/examples/lcm_server_high.cpp" "/home/junchao/Humanoid_Upper_Communication/build/CMakeFiles/lcm_server_high.dir/examples/lcm_server_high.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 

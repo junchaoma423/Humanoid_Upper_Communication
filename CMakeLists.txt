@@ -8,7 +8,8 @@ link_directories(lib)
 
 add_compile_options(-std=c++11)
 
-set(EXTRA_LIBS -pthread libunitree_legged_sdk_arm32.so lcm serialport)
+# set(EXTRA_LIBS -pthread libunitree_legged_sdk_arm32.so lcm serialport)
+set(EXTRA_LIBS -pthread libunitree_legged_sdk_amd64.so lcm serialport)
 
 set(CMAKE_CXX_FLAGS "-O3 -fPIC")
 

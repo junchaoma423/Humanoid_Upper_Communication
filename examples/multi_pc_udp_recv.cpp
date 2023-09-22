@@ -16,7 +16,7 @@ class Custom
 {
 public:
     Custom(): udp(8018, "192.168.123.3", 8017, sizeof(ArmState), sizeof(ArmCommand)),
-    serial("/dev/ttyUSB0", 4800000) {}
+    serial1("/dev/ttyUSB0", 4800000),serial2("/dev/ttyUSB1", 4800000) {}
     void UDPRecv();
     void UDPSend();
     void Calc();
@@ -29,8 +29,14 @@ public:
     ArmCommand command;
     ArmState state;
     float dt = 0.001;
-    Serial serial;
-    int validDataReceived = -3;;
+    Serial serial1;
+    Serial serial2;
+    int validDataReceived = -3;
+    float torque = 0;
+    float position = 0;
+    float velocity = 0;
+    float kp = 0;
+    float kd = 0;
 };
 
 void Custom::UDPRecv()
@@ -46,42 +52,76 @@ void Custom::UDPSend()
 void Custom::Calc()
 {
     uint8_t message[34];
+    int id_feedback;
     auto start = std::chrono::high_resolution_clock::now();
     udp.GetRecv((char*)&command);
     if (validDataReceived == 0){
 
-    // Generate message and send
-    int motorid = 2;
-    int operation_mode = 10;
-    
-    std::cout << "tau_command is " << command.tau_command[0] << std::endl;
-    std::cout << "Position command is " << command.q_command[0] << std::endl;
-    std::cout << "kp command is " << command.kp_command[0] << std::endl;
-    float torque = command.tau_command[0];
-    float position = command.q_command[0];
-    float velocity = command.dq_command[0];
-    float kp = command.kp_command[0];
-    float kd = command.kd_command[0];
-    int id_feedback;
-    
-    serial.generateMessage(motorid, operation_mode, torque, position, velocity, kp, kd, message);
-    //serial.printMessage(message,34);
-    
-    try{
-        serial.writeData(message, sizeof(message));
-    } catch(const std::exception& e){
-        std::cerr << "An error occured: " << e.what() << std::endl;
+    // Generate message 1 and send to 1st serial port
+    for (int motor=0; motor < 2; motor ++){
+        // int motorid = 2;
+        int operation_mode = 10;
+        
+        std::cout << "tau_command is " << command.tau_command[motor] << std::endl;
+        std::cout << "Position command is " << command.q_command[motor] << std::endl;
+        std::cout << "kp command is " << command.kp_command[motor] << std::endl;
+        torque = command.tau_command[motor];
+        position = command.q_command[motor];
+        velocity = command.dq_command[motor];
+        kp = command.kp_command[motor];
+        kd = command.kd_command[motor];
+        
+        serial1.generateMessage(motor, operation_mode, torque, position, velocity, kp, kd, message);
+        serial1.printMessage(message,34);
+        
+        try{
+            serial1.writeData(message, sizeof(message));
+        } catch(const std::exception& e){
+            std::cerr << "An error occured: " << e.what() << std::endl;
+        }
+    }
+    if (disconnect_counter > 10){
+        serial1.generateMessage(0xbb, 0, 0.0, 0.0, 0.0, 0.0, 0.0, message);
+        serial1.writeData(message, sizeof(message));
+    }
+
+    // Generate message 2 and send to 1st serial port
+    for (int motor=2; motor < 4; motor ++){
+        // int motorid = 2;
+        int operation_mode = 10;
+        
+        std::cout << "tau_command is " << command.tau_command[motor] << std::endl;
+        std::cout << "Position command is " << command.q_command[motor] << std::endl;
+        std::cout << "kp command is " << command.kp_command[motor] << std::endl;
+        float torque = command.tau_command[motor];
+        float position = command.q_command[motor];
+        float velocity = command.dq_command[motor];
+        float kp = command.kp_command[motor];
+        float kd = command.kd_command[motor];
+        
+        serial2.generateMessage(motor, operation_mode, torque, position, velocity, kp, kd, message);
+        serial2.printMessage(message,34);
+        
+        try{
+            serial2.writeData(message, sizeof(message));
+        } catch(const std::exception& e){
+            std::cerr << "An error occured: " << e.what() << std::endl;
+        }
+    }
+    if (disconnect_counter > 10){
+        serial2.generateMessage(0xbb, 0, 0.0, 0.0, 0.0, 0.0, 0.0, message);
+        serial2.writeData(message, sizeof(message));
     }
     
     // Reading and decoding the response message
     uint8_t response[78];
-    ssize_t bytesRead = serial.readData(response, sizeof(response));
+    ssize_t bytesRead = serial1.readData(response, sizeof(response));
     
     std::cout << "bytesRead is " << bytesRead << std::endl;
     
     if (bytesRead == sizeof(response)){
         std::cout << "Full Response received from the motor: " << std::endl;
-            serial.decodeMessage(response, id_feedback, state.tauEst[0], state.dq_state[0], state.q_state[0]);
+            serial1.decodeMessage(response, id_feedback, state.tauEst[0], state.dq_state[0], state.q_state[0]);
     }
     
     std::cout << "Position is " << state.q_state[0] << std::endl;
@@ -92,10 +132,6 @@ void Custom::Calc()
     disconnect_counter++;
     }
     
-    if (disconnect_counter > 10){
-        serial.generateMessage(2, 0, 0.0, 0.0, 0.0, 0.0, 0.0, message);
-        serial.writeData(message, sizeof(message));
-    }
     udp.SetSend((char*)&state);
 
     auto end = std::chrono::high_resolution_clock::now();

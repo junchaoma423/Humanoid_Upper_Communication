@@ -1,1 +1,1 @@
-/usr/bin/c++ -O3 -fPIC -rdynamic CMakeFiles/example_walk.dir/examples/example_walk.cpp.o -o example_walk   -L/home/biped/Humanoid_Upper_Communication/lib  -Wl,-rpath,/home/biped/Humanoid_Upper_Communication/lib -pthread -lunitree_legged_sdk_arm32 -llcm -lserialport 
+/usr/bin/c++  -O3 -fPIC  -rdynamic CMakeFiles/example_walk.dir/examples/example_walk.cpp.o  -o example_walk   -L/home/junchao/Humanoid_Upper_Communication/lib  -Wl,-rpath,/home/junchao/Humanoid_Upper_Communication/lib -pthread -lunitree_legged_sdk_amd64 -llcm -lserialport 
